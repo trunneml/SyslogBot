@@ -32,9 +32,12 @@
 #
 
 try:
+    # These imports are only for the startup
     import logging
     import ConfigParser
+    import optparse
 
+    # These imports are only for the Bot class
     from jabberbot import JabberBot, botcmd
 
     import time 
@@ -42,6 +45,7 @@ try:
     import os
     import statgrab
     import socket
+    import urllib2
 
 except ImportError:
     print """Cannot find all required libraries please install them and try again"""
@@ -196,19 +200,32 @@ class SyslogBot(JabberBot):
             self.status_type = self.XA
 
 def main():
-    configFile = "syslogBot.cfg"
+    parser = optparse.OptionParser()
+    parser.add_option("-c", "--config", action="store", type="string", dest="configFile", help="Read configuration from FILE", metavar="FILE", default="/etc/syslogBot.cfg")
+    parser.add_option("-d", "--debug", dest="debug", action="store_true", help="Activate debug mode")
+    parser.add_option("-q", "--quiet", dest="quiet", action="store_true", help="Activate quiet mode")
+    (options, args) = parser.parse_args()
+
+    if options.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    elif options.quiet:
+        logging.basicConfig(level=logging.WARNING)
+    logging.basicConfig(level=logging.INFO)
+
     config = ConfigParser.SafeConfigParser()
-    config.read(configFile)
+    logging.info("Reading config from %s" % options.configFile)
+    config.read(options.configFile)
     jid = config.get("JabberLogin", "JID")
     pwd = config.get("JabberLogin", "Password")
     logJID = config.get("Syslog", "JID")
     if logJID == "":
 	logJID = None
-    logPipe = open(config.get("Syslog", "Pipe"))
 
-    # Activating Debug
-    logging.basicConfig(level=logging.DEBUG)
+    logPipe = config.get("Syslog", "Pipe")
+    logging.info("Waiting until named pipe (%s) is ready ..." % logPipe)
+    logPipe = open(logPipe)
 
+    logging.info("Starting Syslog Bot ...")
     slBot = SyslogBot( jid, pwd, logPipe, logJID)
     slBot.serve_forever()
 
