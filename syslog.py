@@ -26,11 +26,11 @@ import time
 # Fill in the JID + Password of your JabberBot here...
 (JID, PASSWORD) = ('syslogbot@ebutterfly.de','FlfybtObg')
 
-class BroadcastingJabberBot(JabberBot):
+class SyslogBot(JabberBot):
     """This is a simple broadcasting client. Use "subscribe" to subscribe to broadcasts, "unsubscribe" to unsubscribe and "broadcast" + message to send out a broadcast message. Automatic messages will be sent out all 60 seconds."""
 
     def __init__( self, jid, password, res = None):
-        super( BroadcastingJabberBot, self).__init__( jid, password, res)
+        super( SyslogBot, self).__init__( jid, password, res)
 
         self.users = []
         self.message_queue = []
@@ -89,9 +89,9 @@ class BroadcastingJabberBot(JabberBot):
                     return
 
 
-bc = BroadcastingJabberBot( JID, PASSWORD)
+slBot = SyslogBot( JID, PASSWORD)
 
-th = threading.Thread( target = bc.thread_proc)
-bc.serve_forever( connect_callback = lambda: th.start())
-bc.thread_killed = True
+th = threading.Thread( target = slBot.thread_proc)
+slBot.serve_forever( connect_callback = lambda: th.start())
+slBot.thread_killed = True
 
