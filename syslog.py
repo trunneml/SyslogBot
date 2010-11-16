@@ -19,7 +19,7 @@
 
 
 #
-# SyslogBot is inspired by:
+# SyslogBot is heavily inspired by:
 #
 # pySysBot -- http://gitorious.org/pysysbot
 # System status bot -- http://www.uhoreg.ca/programming/jabber/systembot
@@ -135,7 +135,11 @@ class SyslogBot(JabberBot):
 
 # IDLE Command(s)
 
-    def idle_proc( self):
+    def idle_proc( self ):
+        self._idle_syslog()
+        self._idle_status()
+
+    def _idle_syslog( self ):
         readline = self._pipe.readline
         line = readline()
         msgs = []
@@ -144,7 +148,46 @@ class SyslogBot(JabberBot):
             line = readline()
         for msg in msgs:
             self.broadcast(msg)
-	
+
+    def _idle_status( self ):
+        status = []
+
+        load = 'load average: %s %s %s' % os.getloadavg()
+        status.append(load)
+
+        # calculate the uptime
+        status.append(self.uptime())
+
+        # calculate memory and swap usage
+        meminfo_file = open('/proc/meminfo')
+        meminfo = {}
+        for x in meminfo_file:
+            try:
+                (key,value,junk) = x.split(None, 2)
+                key = key[:-1] # strip off the trailing ':'
+                meminfo[key] = int(value)
+            except:
+                pass
+        meminfo_file.close()
+
+        memusage = 'Memory used: %d of %d kB (%d%%) - %d kB free' \
+                   % (meminfo['MemTotal']-meminfo['MemFree'],
+                      meminfo['MemTotal'],
+                      100 - (100*meminfo['MemFree']/meminfo['MemTotal']),
+                      meminfo['MemFree'])
+        status.append(memusage)
+        if meminfo['SwapTotal']:
+            swapusage = 'Swap used: %d of %d kB (%d%%) - %d kB free' \
+                      % (meminfo['SwapTotal']-meminfo['SwapFree'],
+                         meminfo['SwapTotal'],
+                         100 - (100*meminfo['SwapFree']/meminfo['SwapTotal']),
+                         meminfo['SwapFree'])
+            status.append(swapusage)
+
+        status = '\n'.join(status)
+        # TODO: set "show" based on load? e.g. > 1 means "away"
+        if self.status_message != status:
+            self.status_message = status
 	
 # Fill in the JID + Password of your JabberBot here...
 (JID, PASSWORD) = ('syslogbot@ebutterfly.de','FlfybtObg')
