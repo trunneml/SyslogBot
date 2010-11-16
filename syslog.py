@@ -32,14 +32,16 @@
 #
 
 try:
-    from jabberbot import JabberBot, botcmd
-
     import logging
+    import ConfigParser
+
+    from jabberbot import JabberBot, botcmd
 
     import time 
     import datetime
     import os
     import statgrab
+    import socket
 
 except ImportError:
     print """Cannot find all required libraries please install them and try again"""
@@ -48,10 +50,11 @@ except ImportError:
 class SyslogBot(JabberBot):
     """This is a syslog (named pipes) to jabber bot. """
 
-    def __init__( self, jid, password, pipe, statusReport = False, res = None):
+    def __init__( self, jid, password, pipe, syslogJID = None, statusReport = False, res = None):
         super( SyslogBot, self).__init__( jid, password, res)
         self._pipe = pipe
 	self._status = statusReport
+	self._syslogJID = syslogJID
 
 # Bot Commands from pySysBot
 
@@ -158,9 +161,13 @@ class SyslogBot(JabberBot):
             msgs.append( line.strip() )
             line = readline()
         for msg in msgs:
-            self.broadcast(msg)
+            if self._syslogJID:
+                self.send(self._syslogJID, msg)
+            else:
+                self.broadcast(msg)
 
     def _idle_status( self ):
+        """ Display system informations in the status message"""
         status = []
 
         load = 'load average: %s %s %s' % os.getloadavg()
@@ -175,11 +182,11 @@ class SyslogBot(JabberBot):
 	status.append( "Swap:\t %i %%" % swap[3])
 
         status = '\n'.join(status)
-        # TODO: set "show" based on load? e.g. > 1 means "away"
         if self.status_message != status:
             self.status_message = status
 	
     def _idle_show( self ):
+        """ Display load as xmpp status """
         load = os.getloadavg()
         if load[0] < 1:
             self.status_type = self.AVAILABLE
@@ -187,14 +194,23 @@ class SyslogBot(JabberBot):
             self.status_type = self.AWAY
         else:
             self.status_type = self.XA
-	
-# Fill in the JID + Password of your JabberBot here...
-(JID, PASSWORD) = ('syslogbot@ebutterfly.de','FlfybtObg')
 
-# Activating Debug
-logging.basicConfig(level=logging.DEBUG)
+def main():
+    configFile = "syslogBot.cfg"
+    config = ConfigParser.SafeConfigParser()
+    config.read(configFile)
+    jid = config.get("JabberLogin", "JID")
+    pwd = config.get("JabberLogin", "Password")
+    logJID = config.get("Syslog", "JID")
+    if logJID == "":
+	logJID = None
+    logPipe = open(config.get("Syslog", "Pipe"))
 
-slBot = SyslogBot( JID, PASSWORD, open("syslogPipe"))
+    # Activating Debug
+    logging.basicConfig(level=logging.DEBUG)
 
-slBot.serve_forever()
+    slBot = SyslogBot( jid, pwd, logPipe, logJID)
+    slBot.serve_forever()
 
+if __name__ == '__main__':	
+    main()
