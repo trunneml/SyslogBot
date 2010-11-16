@@ -35,10 +35,11 @@ try:
     from jabberbot import JabberBot, botcmd
 
     import logging
-    import time 
 
+    import time 
     import datetime
     import os
+    import statgrab
 
 except ImportError:
     print """Cannot find all required libraries please install them and try again"""
@@ -47,9 +48,10 @@ except ImportError:
 class SyslogBot(JabberBot):
     """This is a syslog (named pipes) to jabber bot. """
 
-    def __init__( self, jid, password, pipe, res = None):
+    def __init__( self, jid, password, pipe, statusReport = False, res = None):
         super( SyslogBot, self).__init__( jid, password, res)
         self._pipe = pipe
+	self._status = statusReport
 
 # Bot Commands from pySysBot
 
@@ -97,31 +99,6 @@ class SyslogBot(JabberBot):
         return load_process
 
     @botcmd
-    def mem(self, mess, args):
-        """Displays the memory status of the server"""
-        swapstat = statgrab.sg_get_swap_stats()
-        memstat = statgrab.sg_get_mem_stats()
-        #Some calculation to get the perc of the data
-        memdiff = memstat['total'] - memstat['free']
-        memfloat = float (memdiff) / float(memstat['total'])
-        memperc = int(round (memfloat * 100))
-        swapdiff = swapstat['total'] - swapstat['free']
-        swapfloat = float (swapdiff) / float(swapstat['total'])
-        swapperc = int(round (swapfloat * 100))
-        mem_process = "Memory status" + \
-                "\n" + " Mem Total : \t" + str(memstat['total']/1048576) + \
-                " MB \t \t Swap Total : \t" + str(swapstat['total']/1048576) + \
-                " MB" + \
-                "\n" + " Mem Used : \t" + str(memstat['used']/1048576) + \
-                " MB \t \t Swap Used : \t" + str(swapstat['used']/1048576) + \
-                " MB" + \
-                "\n" + " Mem Free : \t" + str(memstat['free']/1048576)  + \
-                " MB \t \t \t Swap Free : \t" + str(swapstat['free']/1048576) + \
-                " MB" + "\n" + " Mem Used : \t" + str(memperc) + " %" + \
-                " \t \t \t Swap Used : \t" + str(swapperc) + " %" 
-        return mem_process
-
-    @botcmd
     def ip(self, mess, args):
         """Displays the IP Addresses of the server"""
         #Source: http://commandline.org.uk/python/how-to-find-out-ip-address-in-python/
@@ -133,11 +110,45 @@ class SyslogBot(JabberBot):
                "\n" +"External IP address: \t" + ext_ipaddr
         return data_ipaddr
 
+# Own Bot commands
+    @botcmd
+    def mem(self, mess, args):
+        """Displays the memory status of the server"""
+	memory, swap = self._mem()
+	memStr = ["Memory usage:"]
+	memStr.append( "Memory:\t %i %%  (%i MB/ %i MB)" % (memory[3], memory[1], memory[0]))
+	memStr.append( "Swap:\t %i %%  (%i MB/ %i MB)" % (swap[3], swap[1], swap[0]))
+        return '\n'.join(memStr)
+
+# Helpers
+
+    def _mem(self):
+        """Calculates the memory status of the server"""
+        swapstat = statgrab.sg_get_swap_stats()
+        memstat = statgrab.sg_get_mem_stats()
+        #Some calculation to get the perc of the data
+        memdiff = memstat['total'] - memstat['free']
+        memfloat = float (memdiff) / float(memstat['total'])
+        memperc = int(round (memfloat * 100))
+        swapdiff = swapstat['total'] - swapstat['free']
+        swapfloat = float (swapdiff) / float(swapstat['total'])
+        swapperc = int(round (swapfloat * 100))
+        return ((memstat['total']/1048576 , \
+                 memstat['used']/1048576 , \
+                 memstat['free']/1048576 , \
+                 memperc), \
+                (swapstat['total']/1048576 , \
+                 swapstat['used']/1048576 , \
+                 swapstat['free']/1048576 , \
+                 swapperc))
+
 # IDLE Command(s)
 
     def idle_proc( self ):
         self._idle_syslog()
-        self._idle_status()
+	if self._status:
+	   self._idle_status()
+	self._idle_show()
 
     def _idle_syslog( self ):
         readline = self._pipe.readline
@@ -156,38 +167,26 @@ class SyslogBot(JabberBot):
         status.append(load)
 
         # calculate the uptime
-        status.append(self.uptime())
+        status.append(self.uptime(None, None))
 
         # calculate memory and swap usage
-        meminfo_file = open('/proc/meminfo')
-        meminfo = {}
-        for x in meminfo_file:
-            try:
-                (key,value,junk) = x.split(None, 2)
-                key = key[:-1] # strip off the trailing ':'
-                meminfo[key] = int(value)
-            except:
-                pass
-        meminfo_file.close()
-
-        memusage = 'Memory used: %d of %d kB (%d%%) - %d kB free' \
-                   % (meminfo['MemTotal']-meminfo['MemFree'],
-                      meminfo['MemTotal'],
-                      100 - (100*meminfo['MemFree']/meminfo['MemTotal']),
-                      meminfo['MemFree'])
-        status.append(memusage)
-        if meminfo['SwapTotal']:
-            swapusage = 'Swap used: %d of %d kB (%d%%) - %d kB free' \
-                      % (meminfo['SwapTotal']-meminfo['SwapFree'],
-                         meminfo['SwapTotal'],
-                         100 - (100*meminfo['SwapFree']/meminfo['SwapTotal']),
-                         meminfo['SwapFree'])
-            status.append(swapusage)
+	memory, swap = self._mem()
+	status.append( "Memory:\t %i %%" % memory[3])
+	status.append( "Swap:\t %i %%" % swap[3])
 
         status = '\n'.join(status)
         # TODO: set "show" based on load? e.g. > 1 means "away"
         if self.status_message != status:
             self.status_message = status
+	
+    def _idle_show( self ):
+        load = os.getloadavg()
+        if load[0] < 1:
+            self.status_type = self.AVAILABLE
+	elif load[0] < 2:
+            self.status_type = self.AWAY
+        else:
+            self.status_type = self.XA
 	
 # Fill in the JID + Password of your JabberBot here...
 (JID, PASSWORD) = ('syslogbot@ebutterfly.de','FlfybtObg')
