@@ -24,6 +24,8 @@ import threading
 import time 
 import select
 
+import os
+
 # Fill in the JID + Password of your JabberBot here...
 (JID, PASSWORD) = ('syslogbot@ebutterfly.de','FlfybtObg')
 
@@ -33,6 +35,13 @@ class SyslogBot(JabberBot):
     def __init__( self, jid, password, pipe, res = None):
         super( SyslogBot, self).__init__( jid, password, res)
 	self._pipe = pipe
+
+    @botcmd
+    def who(self, mess, args):
+        """Display who's currently logged in"""
+        who = os.popen('/usr/bin/who').read().strip()
+        return who
+
 
     def idle_proc( self):
 	readline = self._pipe.readline
