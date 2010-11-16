@@ -22,76 +22,34 @@ from jabberbot import JabberBot, botcmd
 
 import threading
 import time 
+import select
 
 # Fill in the JID + Password of your JabberBot here...
 (JID, PASSWORD) = ('syslogbot@ebutterfly.de','FlfybtObg')
 
 class SyslogBot(JabberBot):
-    """This is a simple broadcasting client. Use "subscribe" to subscribe to broadcasts, "unsubscribe" to unsubscribe and "broadcast" + message to send out a broadcast message. Automatic messages will be sent out all 60 seconds."""
+    """This is a syslog (named pipes) to jabber bot. """
 
-    def __init__( self, jid, password, res = None):
+    def __init__( self, jid, password, pipe, res = None):
         super( SyslogBot, self).__init__( jid, password, res)
-
-        self.users = []
-        self.message_queue = []
-        self.thread_killed = False
-
-    @botcmd
-    def subscribe( self, mess, args):
-        """Subscribe to the broadcast list"""
-        user = mess.getFrom()
-        if user in self.users:
-            return 'You are already subscribed.'
-        else:
-            self.users.append( user)
-            self.log( '%s subscribed to the broadcast.' % user)
-            return 'You are now subscribed.'
-
-    @botcmd
-    def unsubscribe( self, mess, args):
-        """Unsubscribe from the broadcast list"""
-        user = mess.getFrom()
-        if not user in self.users:
-            return 'You are not subscribed!'
-        else:
-            self.users.remove( user)
-            self.log( '%s unsubscribed from the broadcast.' % user)
-            return 'You are now unsubscribed.'
-    
-    # You can use the "hidden" parameter to hide the
-    # command from JabberBot's 'help' list
-    @botcmd(hidden=True)
-    def broadcast( self, mess, args):
-        """Sends out a broadcast, supply message as arguments (e.g. broadcast hello)"""
-        self.message_queue.append( 'broadcast: %s (from %s)' % ( args, str(mess.getFrom()), ))
-        self.log( '%s sent out a message to %d users.' % ( str(mess.getFrom()), len(self.users),))
+	self._pipe = pipe
 
     def idle_proc( self):
-        if not len(self.message_queue):
-            return
+	readline = self._pipe.readline
+	line = readline()
+	msgs = []
+	while line:
+		msgs.append( line.strip() )
+		line = readline()
+	for msg in msgs:
+		self.broadcast(msg)
+	
+	
+# Activating Debug
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
-        # copy the message queue, then empty it
-        messages = self.message_queue
-        self.message_queue = []
+slBot = SyslogBot( JID, PASSWORD, open("syslogPipe"))
 
-        for message in messages:
-            if len(self.users):
-                self.log('sending "%s" to %d user(s).' % ( message, len(self.users), ))
-            for user in self.users:
-                self.send( user, message)
-
-    def thread_proc( self):
-        while not self.thread_killed:
-            self.message_queue.append('this is an automatic message, sent all 60 seconds :)')
-            for i in range(60):
-                time.sleep( 1)
-                if self.thread_killed:
-                    return
-
-
-slBot = SyslogBot( JID, PASSWORD)
-
-th = threading.Thread( target = slBot.thread_proc)
-slBot.serve_forever( connect_callback = lambda: th.start())
-slBot.thread_killed = True
+slBot.serve_forever()
 
