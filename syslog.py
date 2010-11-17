@@ -200,11 +200,11 @@ class SyslogBot(JabberBot):
             # Sometimes named pipes generating empty lines :-?
             if msg:
                 if self._syslogJID:
-                    self.log.debug("Sending \"%s\" to %s" % (line, self._syslogJID))
-                    self.send(self._syslogJID, line)
+                    self.log.debug("Sending \"%s\" to %s" % (msg, self._syslogJID))
+                    self.send(self._syslogJID, msg)
                 else:
-	            self.log.debug("Broadcasting \"%s\" to all online users" % line)
-                    self.broadcast(line)
+	            self.log.debug("Broadcasting \"%s\" to all online users" % msg)
+                    self.broadcast(msg)
             else:
                 time.sleep(1)
                 
