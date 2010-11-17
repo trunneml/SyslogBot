@@ -48,6 +48,7 @@ try:
 
     import threading
     import time 
+    import select
 
 except ImportError:
     print """Cannot find all required libraries please install them and try again"""
@@ -64,6 +65,9 @@ class SyslogBot(JabberBot):
         self.thread_killed = False
         self._th = threading.Thread( target = self.thread_proc)
         self._th.start()
+
+    def shutdown(self):
+	self.thread_killed = True
 
 # Bot Commands from pySysBot
 
@@ -193,26 +197,25 @@ class SyslogBot(JabberBot):
 
 # Thread functions
     def thread_proc(self):
-        readline = self._pipe.readline
+        pipe = self._pipe
+        readline = pipe.readline
         while not self.thread_killed:
-            self.log.debug("Reading next Line from Pipe")
-            msg = readline()
-            # Sometimes named pipes generating empty lines :-?
-            if msg:
-                if self._syslogJID:
-                    self.log.debug("Sending \"%s\" to %s" % (msg, self._syslogJID))
-                    self.send(self._syslogJID, msg)
+            self.log.debug("Looking for next line on pipe")
+            if select.select([pipe],[],[],0.5)[0]:
+                msg = readline()
+                # Sometimes named pipes generating empty lines :-?
+                if msg:
+                    if self._syslogJID:
+                        self.log.debug("Sending \"%s\" to %s" % (msg, self._syslogJID))
+                        self.send(self._syslogJID, msg)
+                    else:
+                        self.log.debug("Broadcasting \"%s\" to all online users" % msg)
+                        self.broadcast(msg)
                 else:
-	            self.log.debug("Broadcasting \"%s\" to all online users" % msg)
-                    self.broadcast(msg)
-            else:
-                time.sleep(1)
-                
-    def _idle_status( self ):
-        """ Display system informations in the status message"""
-        status = []
-        
-
+                    # When the pipe gives us empty lines normally
+                    # this means select.select doesn't work. (No idea why)
+                    # To reduce resource consuming we sleep one second
+                    time.sleep(1)
 
 def main():
     parser = optparse.OptionParser()
@@ -243,7 +246,6 @@ def main():
     logging.info("Starting Syslog Bot ...")
     slBot = SyslogBot( jid, pwd, logPipe, logJID)
     slBot.serve_forever()
-
 
 if __name__ == '__main__':	
     main()
