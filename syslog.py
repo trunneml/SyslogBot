@@ -162,18 +162,18 @@ class SyslogBot(JabberBot):
 
     def _idle_syslog( self ):
 	self.log.debug("Checking Pipe for new Data")
-	rList, wList, xList = select.select([self._pipe],[],[])
+	rList, wList, xList = select.select([self._pipe],[],[],0)
 	for r in rList:
 	    self.log.debug("Reading next Line from Pipe")
             line = r.readline()
             # Sometimes named pipes producing empty lines :-? 
             if line:
                 if self._syslogJID:
-                    self.log.debug("Sending \"%s\" to " % self._syslogJID)
-                    self.send(self._syslogJID, msg)
+                    self.log.debug("Sending \"%s\" to %s" % (line, self._syslogJID))
+                    self.send(self._syslogJID, line)
                 else:
-	            self.log.debug("Broadcasting \"%s\"" % msg)
-                    self.broadcast(msg)
+	            self.log.debug("Broadcasting \"%s\" to all online users" % line)
+                    self.broadcast(line)
                 
     def _idle_status( self ):
         """ Display system informations in the status message"""
