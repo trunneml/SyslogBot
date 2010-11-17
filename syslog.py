@@ -40,14 +40,14 @@ try:
     # These imports are only for the Bot class
     from jabberbot import JabberBot, botcmd
 
-    import time 
     import datetime
     import os
     import statgrab
     import socket
     import urllib2
 
-    import select
+    import threading
+    import time 
 
 except ImportError:
     print """Cannot find all required libraries please install them and try again"""
@@ -61,6 +61,9 @@ class SyslogBot(JabberBot):
         self._pipe = pipe
 	self._status = statusReport
 	self._syslogJID = syslogJID
+        self.thread_killed = False
+        self._th = threading.Thread( target = self.thread_proc)
+        self._th.start()
 
 # Bot Commands from pySysBot
 
@@ -155,26 +158,10 @@ class SyslogBot(JabberBot):
 
     def idle_proc( self ):
 	self.log.debug("Running idle proc")
-        self._idle_syslog()
 	if self._status:
 	   self._idle_status()
 	self._idle_show()
 
-    def _idle_syslog( self ):
-	self.log.debug("Checking Pipe for new Data")
-	rList, wList, xList = select.select([self._pipe],[],[],0)
-	for r in rList:
-	    self.log.debug("Reading next Line from Pipe")
-            line = r.readline()
-            # Sometimes named pipes producing empty lines :-? 
-            if line:
-                if self._syslogJID:
-                    self.log.debug("Sending \"%s\" to %s" % (line, self._syslogJID))
-                    self.send(self._syslogJID, line)
-                else:
-	            self.log.debug("Broadcasting \"%s\" to all online users" % line)
-                    self.broadcast(line)
-                
     def _idle_status( self ):
         """ Display system informations in the status message"""
         status = []
@@ -203,6 +190,29 @@ class SyslogBot(JabberBot):
             self.status_type = self.AWAY
         else:
             self.status_type = self.XA
+
+# Thread functions
+    def thread_proc(self):
+        readline = self._pipe.readline
+        while not self.thread_killed:
+            self.log.debug("Reading next Line from Pipe")
+            msg = readline()
+            # Sometimes named pipes generating empty lines :-?
+            if msg:
+                if self._syslogJID:
+                    self.log.debug("Sending \"%s\" to %s" % (line, self._syslogJID))
+                    self.send(self._syslogJID, line)
+                else:
+	            self.log.debug("Broadcasting \"%s\" to all online users" % line)
+                    self.broadcast(line)
+            else:
+                time.sleep(1)
+                
+    def _idle_status( self ):
+        """ Display system informations in the status message"""
+        status = []
+        
+
 
 def main():
     parser = optparse.OptionParser()
@@ -233,6 +243,7 @@ def main():
     logging.info("Starting Syslog Bot ...")
     slBot = SyslogBot( jid, pwd, logPipe, logJID)
     slBot.serve_forever()
+
 
 if __name__ == '__main__':	
     main()
