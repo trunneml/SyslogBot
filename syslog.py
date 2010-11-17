@@ -47,6 +47,8 @@ try:
     import socket
     import urllib2
 
+    import select
+
 except ImportError:
     print """Cannot find all required libraries please install them and try again"""
     raise SystemExit
@@ -152,24 +154,27 @@ class SyslogBot(JabberBot):
 # IDLE Command(s)
 
     def idle_proc( self ):
+	self.log.debug("Running idle proc")
         self._idle_syslog()
 	if self._status:
 	   self._idle_status()
 	self._idle_show()
 
     def _idle_syslog( self ):
-        readline = self._pipe.readline
-        line = readline()
-        msgs = []
-        while line:
-            msgs.append( line.strip() )
-            line = readline()
-        for msg in msgs:
-            if self._syslogJID:
-                self.send(self._syslogJID, msg)
-            else:
-                self.broadcast(msg)
-
+	self.log.debug("Checking Pipe for new Data")
+	rList, wList, xList = select.select([self._pipe],[],[])
+	for r in rList:
+	    self.log.debug("Reading next Line from Pipe")
+            line = r.readline()
+            # Sometimes named pipes producing empty lines :-? 
+            if line:
+                if self._syslogJID:
+                    self.log.debug("Sending \"%s\" to " % self._syslogJID)
+                    self.send(self._syslogJID, msg)
+                else:
+	            self.log.debug("Broadcasting \"%s\"" % msg)
+                    self.broadcast(msg)
+                
     def _idle_status( self ):
         """ Display system informations in the status message"""
         status = []
