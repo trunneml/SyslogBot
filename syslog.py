@@ -57,11 +57,10 @@ except ImportError:
 class SyslogBot(JabberBot):
     """This is a syslog (named pipes) to jabber bot. """
 
-    def __init__( self, jid, password, pipe, syslogJID = None, statusReport = False, res = None):
+    def __init__( self, jid, password, pipes, statusReport = False, res = None):
         super( SyslogBot, self).__init__( jid, password, res)
-        self._pipe = pipe
+        self._pipes = dict(pipes)
 	self._status = statusReport
-	self._syslogJID = syslogJID
         self.thread_killed = False
         self._th = threading.Thread( target = self.thread_proc)
         self._th.start()
@@ -197,18 +196,21 @@ class SyslogBot(JabberBot):
 
 # Thread functions
     def thread_proc(self):
-        pipe = self._pipe
-        readline = pipe.readline
+        pipe2jids = self._pipes
+        pipes = pipe2jids.keys()
         while not self.thread_killed:
             self.log.debug("Looking for next line on pipe")
-            if select.select([pipe],[],[],0.5)[0]:
-                msg = readline()
+            rList = select.select(pipes,[],[],0.5)[0]
+            for pipe in rList:
+                msg = pipe.readline()
                 msg = msg.strip()
                 # Sometimes named pipes generating empty lines :-?
                 if msg:
-                    if self._syslogJID:
-                        self.log.debug("Sending \"%s\" to %s" % (msg, self._syslogJID))
-                        self.send(self._syslogJID, msg)
+                    jids = pipe2jids[pipe]
+                    if jids:
+                        for jid in jids:
+                            self.log.debug("Sending \"%s\" to %s" % (msg, jid))
+                            self.send(jid, msg)
                     else:
                         self.log.debug("Broadcasting \"%s\" to all online users" % msg)
                         self.broadcast(msg)
@@ -236,16 +238,18 @@ def main():
     config.read(options.configFile)
     jid = config.get("JabberLogin", "JID")
     pwd = config.get("JabberLogin", "Password")
-    logJID = config.get("Syslog", "JID")
-    if logJID == "":
-	logJID = None
+    logJIDs = config.get("Syslog", "JIDs")
+    if logJIDs == "":
+	logJIDs = None
+    else:
+        logJIDs = map(lambda x: x.strip(), logJIDs.split(","))
 
     logPipe = config.get("Syslog", "Pipe")
     logging.info("Waiting until named pipe (%s) is ready ..." % logPipe)
     logPipe = open(logPipe)
 
     logging.info("Starting Syslog Bot ...")
-    slBot = SyslogBot( jid, pwd, logPipe, logJID)
+    slBot = SyslogBot( jid, pwd, [(logPipe, logJIDs)] )
     slBot.serve_forever()
 
 if __name__ == '__main__':	
