@@ -241,16 +241,17 @@ def main():
     
     # Reading all Pipe setups
     pipes = []
-    for pipe in filter ( lambda x: x <> "JabberLogin", config.sections()):
-        logJIDs = config.get(pipe, "JIDs")
+    for group in filter ( lambda x: x <> "JabberLogin", config.sections()):
+        logJIDs = config.get(group, "JIDs")
         if logJIDs == "":
             logJIDs = None
         else:
             logJIDs = map(lambda x: x.strip(), logJIDs.split(","))
-        logPipe = config.get("Syslog", "Pipe")
-        logging.info("Waiting until named pipe (%s) is ready ..." % logPipe)
-        logPipe = open(logPipe)
-        pipes.append((logPipe, logJIDs))
+        gpipes = config.get(group, "Pipes")
+        gpipes = gpipes.split(",")
+        logging.info("Waiting until named pipes of %s are ready ..." % group)
+        gpipes = map( lambda x: open(x.strip()), gpipes )
+        pipes.extend( map( lambda x: ( x, logJIDs), gpipes ))
 
     logging.info("Starting Syslog Bot ...")
     slBot = SyslogBot( jid, pwd, pipes )
