@@ -203,6 +203,7 @@ class SyslogBot(JabberBot):
             self.log.debug("Looking for next line on pipe")
             if select.select([pipe],[],[],0.5)[0]:
                 msg = readline()
+                msg = msg.strip()
                 # Sometimes named pipes generating empty lines :-?
                 if msg:
                     if self._syslogJID:
