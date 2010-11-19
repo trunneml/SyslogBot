@@ -238,18 +238,22 @@ def main():
     config.read(options.configFile)
     jid = config.get("JabberLogin", "JID")
     pwd = config.get("JabberLogin", "Password")
-    logJIDs = config.get("Syslog", "JIDs")
-    if logJIDs == "":
-	logJIDs = None
-    else:
-        logJIDs = map(lambda x: x.strip(), logJIDs.split(","))
-
-    logPipe = config.get("Syslog", "Pipe")
-    logging.info("Waiting until named pipe (%s) is ready ..." % logPipe)
-    logPipe = open(logPipe)
+    
+    # Reading all Pipe setups
+    pipes = []
+    for pipe in filter ( lambda x: x <> "JabberLogin", config.sections()):
+        logJIDs = config.get(pipe, "JIDs")
+        if logJIDs == "":
+            logJIDs = None
+        else:
+            logJIDs = map(lambda x: x.strip(), logJIDs.split(","))
+        logPipe = config.get("Syslog", "Pipe")
+        logging.info("Waiting until named pipe (%s) is ready ..." % logPipe)
+        logPipe = open(logPipe)
+        pipes.append((logPipe, logJIDs))
 
     logging.info("Starting Syslog Bot ...")
-    slBot = SyslogBot( jid, pwd, [(logPipe, logJIDs)] )
+    slBot = SyslogBot( jid, pwd, pipes )
     slBot.serve_forever()
 
 if __name__ == '__main__':	
