@@ -199,6 +199,9 @@ class SyslogBot(JabberBot):
         pipe2jids = self._pipes
         pipes = pipe2jids.keys()
         while not self.thread_killed:
+            # Waiting for jabber connection
+            while not self.conn:
+                time.sleep(1)
             self.log.debug("Looking for next line on pipe")
             rList = select.select(pipes,[],[],0.5)[0]
             for pipe in rList:
@@ -215,10 +218,11 @@ class SyslogBot(JabberBot):
                         self.log.debug("Broadcasting \"%s\" to all online users" % msg)
                         self.broadcast(msg)
                 else:
-                    # When the pipe gives us empty lines normally
-                    # this means select.select doesn't work. (No idea why)
+                    # When the pipe gives us empty lines
                     # To reduce resource consuming we sleep one second
                     time.sleep(1)
+            # Reduce bandwidth consuming
+            time.sleep(0.5)
 
 def main():
     parser = optparse.OptionParser()
