@@ -62,9 +62,6 @@ class SyslogBot(JabberBot):
         self._pipes = dict(pipes)
         self._status = statusReport
 
-    def shutdown(self):
-        self.thread_killed = True
-
 # Bot Commands from pySysBot
 
     @botcmd
@@ -196,7 +193,7 @@ class SyslogBot(JabberBot):
     def _idle_readPipe(self):
         pipe2jids = self._pipes
         pipes = pipe2jids.keys()
-            # Waiting for jabber connection
+        # Waiting for a jabber connection
         if self.conn:
             self.log.debug("Looking for next line on pipe")
             rList = select.select(pipes,[],[],0.5)[0]
@@ -213,25 +210,27 @@ class SyslogBot(JabberBot):
                     self.broadcast(msg)
 
 def main():
+    # Init Option Parser
     parser = optparse.OptionParser()
     parser.add_option("-c", "--config", action="store", type="string", dest="configFile", help="Read configuration from FILE", metavar="FILE", default="/etc/syslogBot.cfg")
     parser.add_option("-d", "--debug", dest="debug", action="store_true", help="Activate debug mode")
     parser.add_option("-q", "--quiet", dest="quiet", action="store_true", help="Activate quiet mode")
+    # Parse Options
     (options, args) = parser.parse_args()
-
+    # Configure logging
     if options.debug:
         logging.basicConfig(level=logging.DEBUG)
     elif options.quiet:
         logging.basicConfig(level=logging.WARNING)
     logging.basicConfig(level=logging.INFO)
-
+    # Load Config
     config = ConfigParser.SafeConfigParser()
     logging.info("Reading config from %s" % options.configFile)
     config.read(options.configFile)
     jid = config.get("JabberLogin", "JID")
     pwd = config.get("JabberLogin", "Password")
     
-    # Reading all Pipe setups
+    # Reading all Pipe setups in the config file
     pipes = []
     for group in filter ( lambda x: x <> "JabberLogin", config.sections()):
         logJIDs = config.get(group, "JIDs")
@@ -242,9 +241,12 @@ def main():
         gpipes = config.get(group, "Pipes")
         gpipes = gpipes.split(",")
         logging.info("Waiting until named pipes of %s are ready ..." % group)
+        # Open all given pipes
         gpipes = map( lambda x: open(x.strip(), "r+"), gpipes )
+        # Add all pipes with their jabber list	
         pipes.extend( map( lambda x: ( x, logJIDs), gpipes ))
 
+    # Start Bot
     logging.info("Starting Syslog Bot ...")
     slBot = SyslogBot( jid, pwd, pipes )
     slBot.serve_forever()
