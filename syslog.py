@@ -60,13 +60,10 @@ class SyslogBot(JabberBot):
     def __init__( self, jid, password, pipes, statusReport = False, res = None):
         super( SyslogBot, self).__init__( jid, password, res)
         self._pipes = dict(pipes)
-	self._status = statusReport
-        self.thread_killed = False
-        self._th = threading.Thread( target = self.thread_proc)
-        self._th.start()
+        self._status = statusReport
 
     def shutdown(self):
-	self.thread_killed = True
+        self.thread_killed = True
 
 # Bot Commands from pySysBot
 
@@ -129,10 +126,10 @@ class SyslogBot(JabberBot):
     @botcmd
     def mem(self, mess, args):
         """Displays the memory status of the server"""
-	memory, swap = self._mem()
-	memStr = ["Memory usage:"]
-	memStr.append( "Memory:\t %i %%  (%i MB/ %i MB)" % (memory[3], memory[1], memory[0]))
-	memStr.append( "Swap:\t %i %%  (%i MB/ %i MB)" % (swap[3], swap[1], swap[0]))
+        memory, swap = self._mem()
+        memStr = ["Memory usage:"]
+        memStr.append( "Memory:\t %i %%  (%i MB/ %i MB)" % (memory[3], memory[1], memory[0]))
+        memStr.append( "Swap:\t %i %%  (%i MB/ %i MB)" % (swap[3], swap[1], swap[0]))
         return '\n'.join(memStr)
 
 # Helpers
@@ -160,10 +157,11 @@ class SyslogBot(JabberBot):
 # IDLE Command(s)
 
     def idle_proc( self ):
-	self.log.debug("Running idle proc")
-	if self._status:
-	   self._idle_status()
-	self._idle_show()
+        self.log.debug("Running idle proc")
+        if self._status:
+            self._idle_status()
+        self._idle_show()
+        self._idle_readPipe()
 
     def _idle_status( self ):
         """ Display system informations in the status message"""
@@ -176,53 +174,43 @@ class SyslogBot(JabberBot):
         status.append(self.uptime(None, None))
 
         # calculate memory and swap usage
-	memory, swap = self._mem()
-	status.append( "Memory:\t %i %%" % memory[3])
-	status.append( "Swap:\t %i %%" % swap[3])
+        memory, swap = self._mem()
+        status.append( "Memory:\t %i %%" % memory[3])
+        status.append( "Swap:\t %i %%" % swap[3])
 
         status = '\n'.join(status)
         if self.status_message != status:
             self.status_message = status
-	
+
     def _idle_show( self ):
         """ Display load as xmpp status """
         load = os.getloadavg()
         if load[0] < 1:
             self.status_type = self.AVAILABLE
-	elif load[0] < 2:
+        elif load[0] < 2:
             self.status_type = self.AWAY
         else:
             self.status_type = self.XA
 
 # Thread functions
-    def thread_proc(self):
+    def _idle_readPipe(self):
         pipe2jids = self._pipes
         pipes = pipe2jids.keys()
-        while not self.thread_killed:
             # Waiting for jabber connection
-            while not self.conn:
-                time.sleep(1)
+        if self.conn:
             self.log.debug("Looking for next line on pipe")
             rList = select.select(pipes,[],[],0.5)[0]
             for pipe in rList:
                 msg = pipe.readline()
                 msg = msg.strip()
-                # Sometimes named pipes generating empty lines :-?
-                if msg:
-                    jids = pipe2jids[pipe]
-                    if jids:
-                        for jid in jids:
-                            self.log.debug("Sending \"%s\" to %s" % (msg, jid))
-                            self.send(jid, msg)
-                    else:
-                        self.log.debug("Broadcasting \"%s\" to all online users" % msg)
-                        self.broadcast(msg)
+                jids = pipe2jids[pipe]
+                if jids:
+                    for jid in jids:
+                        self.log.debug("Sending \"%s\" to %s" % (msg, jid))
+                        self.send(jid, msg)
                 else:
-                    # When the pipe gives us empty lines
-                    # To reduce resource consuming we sleep one second
-                    time.sleep(1)
-            # Reduce bandwidth consuming
-            time.sleep(0.5)
+                    self.log.debug("Broadcasting \"%s\" to all online users" % msg)
+                    self.broadcast(msg)
 
 def main():
     parser = optparse.OptionParser()
@@ -254,12 +242,12 @@ def main():
         gpipes = config.get(group, "Pipes")
         gpipes = gpipes.split(",")
         logging.info("Waiting until named pipes of %s are ready ..." % group)
-        gpipes = map( lambda x: open(x.strip()), gpipes )
+        gpipes = map( lambda x: open(x.strip(), "r+"), gpipes )
         pipes.extend( map( lambda x: ( x, logJIDs), gpipes ))
 
     logging.info("Starting Syslog Bot ...")
     slBot = SyslogBot( jid, pwd, pipes )
     slBot.serve_forever()
 
-if __name__ == '__main__':	
+if __name__ == '__main__':
     main()
