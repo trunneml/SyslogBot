@@ -46,7 +46,6 @@ try:
     import socket
     import urllib2
 
-    import threading
     import time 
     import select
 
@@ -189,7 +188,6 @@ class SyslogBot(JabberBot):
         else:
             self.status_type = self.XA
 
-# Thread functions
     def _idle_readPipe(self):
         pipe2jids = self._pipes
         pipes = pipe2jids.keys()
