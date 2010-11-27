@@ -239,10 +239,18 @@ def main():
         else:
             logJIDs = map(lambda x: x.strip(), logJIDs.split(","))
         gpipes = config.get(group, "Pipes")
+        # Check if we should open the pipes in update mode.
+        # This makes it possible that the pipe "client" can terminate the
+        # connection and later reconnect and we will not get receiver a EOF.
+        # So we don't need to close and open the pipe again for blocking read.
+        # But this neads read and write permission on the pipe!
+        readMode = "r"
+        if config.getboolean(group, "UpdateMode"):
+            readMode = "r+"
         gpipes = gpipes.split(",")
         logging.info("Waiting until named pipes of %s are ready ..." % group)
         # Open all given pipes
-        gpipes = map( lambda x: open(x.strip(), "r+"), gpipes )
+        gpipes = map( lambda x: open(x.strip(), readMode), gpipes )
         # Add all pipes with their jabber list	
         pipes.extend( map( lambda x: ( x, logJIDs), gpipes ))
 
