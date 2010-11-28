@@ -1,0 +1,59 @@
+SyslogBot - a named pipe to jabber bot
+Michael Trunner <michael@trunner.de>
+Last changed: %%mtime(%Y-%m-%d)
+
+= About =
+SyslogBot is a jabber/xmpp bot to deliver messages from named pipes to some given JIDs, MUCs or all people connected to the bot. It is written with the python-jabberbot framework in Python. Both JIDs and named pipes can be configured.
+
+The main idea is to replace logcheck which sends all new log messages of the last time per email to the administrator. SyslogBot delivers syslog messages over jabber/xmpp to the administrators in nearly real time. It is designed to deliver syslog messages from a named pipe, but you can send any kind of message received from any program over a named pipe to syslogBot.
+
+
+= Dependencies =
+ - Python2
+ - python-jabberbot > 0.10
+ - a jabber account for the bot
+
+
+= Setup =
+For configuration details please look at the example config file.
+You have to setup the jabber account, the jabber password, a list of pipes and a (maybe empty) list of jids which are the default recipients.
+
+All messages received by one of the pipes will be delivered to the specified jids.
+If the default recipients are empty, then they will be broadcasted to all connect jids in the roster of the bot.
+
+If the message line contains "<::" the bot splits the message into two parts.
+The part before "<::" are interpreted as the recipient list for this message.
+The second part is the message that will be sent to the given jids list.
+If it is empty the message will be again broadcasted.
+This way you can setup the recipients in your syslog daemon. In syslog-ng and rsyslog you only have to create a message template for the output pipe to this bot.
+
+
+== Create a named pipe ==
+To create a named pipe for syslog messages please take a look at you syslog daemon manual. Most syslog daemons can create proper named pipes automatically.
+
+For a manual creation of a named pipe use:
+
+``` $ mkfifo <path to fifo in the filesystem>
+
+
+== Message filtering ==
+SyslogBot doesn't support any message filtering. Insead of that you have to configure your syslog daemon to only deliver messages you want to the name pipe. This needs much less system resources than a python based regex filtering. Syslog-ng and rsyslog have built in support for message filtering, which is really easy to configure. So there is no need for an extra filtering in SyslogBot.
+
+
+= Licence =
+This file is part of SyslogBot.
+
+SyslogBot is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+SyslogBot is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with SyslogBot.  If not, see <http://www.gnu.org/licenses/>.
+
+
