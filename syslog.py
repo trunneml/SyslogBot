@@ -61,6 +61,7 @@ class SyslogBot(JabberBot):
         super( SyslogBot, self).__init__( jid, password, res)
         self.log.info("Opening all %i given pipes", len(pipes))
         self._pipes = map( lambda x: open(x, "r+" if os.access(x, os.W_OK) else "r" ), pipes )
+        self._closedPipes = []
         self._defaultJIDs = jids
         self._status = statusReport
 
@@ -199,25 +200,31 @@ class SyslogBot(JabberBot):
             rList = select.select(pipes,[],[],0.5)[0]
             for pipe in rList:
                 msg = pipe.readline()
-                # If a message contains <:: The part before <:: are a list
-                # of recipient for this message.
-                part = msg.partition("<::")
-                if part[1]:
-                    msg = part[2].strip()
-                    # Cut the list of jids in to pieces and remove 
-                    # tailing and leading whitespaces.
-                    jids = map(str.strip, part[0].split(","))
+                if msg:
+                    # If a message contains <:: The part before <:: are a list
+                    # of recipient for this message.
+                    part = msg.partition("<::")
+                    if part[1]:
+                        msg = part[2].strip()
+                        # Cut the list of jids in to pieces and remove 
+                        # tailing and leading whitespaces.
+                        jids = map(str.strip, part[0].split(","))
+                    else:
+                        msg = part[0].strip()
+                        jids = self._defaultJIDs
+                    if jids:
+                        for jid in jids:
+                            self.log.debug("Sending \"%s\" to %s" % (msg, jid))
+                            self.send(jid, msg)
+                    else:
+                        self.log.debug("Broadcasting \"%s\" to all online users" % msg)
+                        self.broadcast(msg)
                 else:
-                    msg = part[0].strip()
-                    jids = self._defaultJIDs
-                if jids:
-                    for jid in jids:
-                        self.log.debug("Sending \"%s\" to %s" % (msg, jid))
-                        self.send(jid, msg)
-                else:
-                    self.log.debug("Broadcasting \"%s\" to all online users" % msg)
-                    self.broadcast(msg)
-
+                    self.log.warn("Connection on pipe %s has been terminated" % pipe.name)
+                    self._closedPipes.append(pipe.name)
+                    pipes.remove(pipe)
+                    pipe.close()
+         
 def main():
     # Init Option Parser
     parser = optparse.OptionParser()
