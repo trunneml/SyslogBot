@@ -198,8 +198,17 @@ class SyslogBot(JabberBot):
             rList = select.select(pipes,[],[],0.5)[0]
             for pipe in rList:
                 msg = pipe.readline()
-                msg = msg.strip()
-                jids = pipe2jids[pipe]
+                # If a message contains <:: The part before <:: are a list
+                # of recipient for this message.
+                part = msg.partition("<::")
+                if part[1]:
+                    msg = part[2].strip()
+                    # Cut the list of jids in to pieces and remove 
+                    # tailing and leading whitespaces.
+                    jids = map(str.strip, part[0].split(","))
+                else:
+                    msg = part[0].strip()
+                    jids = pipe2jids[pipe]
                 if jids:
                     for jid in jids:
                         self.log.debug("Sending \"%s\" to %s" % (msg, jid))
