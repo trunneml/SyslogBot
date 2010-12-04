@@ -221,6 +221,11 @@ class SyslogBot(JabberBot):
                         self.broadcast(msg)
                 else:
                     self.log.warn("Connection on pipe %s has been terminated" % pipe.name)
+                    if self._defaultJIDs:
+                        for jid in self._defaultJIDs:
+                            self.send(jid, "Connection on pipe %s has been terminated")
+                    else:
+                        self.broadcast(msg)
                     self._closedPipes.append(pipe.name)
                     pipes.remove(pipe)
                     pipe.close()
