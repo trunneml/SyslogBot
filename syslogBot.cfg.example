@@ -1,16 +1,11 @@
-[JabberLogin]
+[SyslogBot]
 # This group defines the account login data for the bot.
-# It must be named JabberLogin!
+# It must be named Syslogbot.
 # JID ist the JID to login Password the password
 JID=syslogbot@example.com
 Password=verysecretpassword
-
-# All following groups are named pipe groups
-# Every group must have a unique name. 
-# Every groups has one or more pipes
-# and none or more given jids.
-[Syslog]
-# All messages will be delivered to these JIDs.
+# All messages will be delivered to these JIDs,
+# if there is no recipient in the message line.
 # If "JIDs" is empty then the messages will be delivered
 # to all online users in the roster of the bot.
 # JIDs are separated by ","

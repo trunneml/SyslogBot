@@ -235,33 +235,21 @@ def main():
     config = ConfigParser.SafeConfigParser()
     logging.info("Reading config from %s" % options.configFile)
     config.read(options.configFile)
-    jid = config.get("JabberLogin", "JID")
-    pwd = config.get("JabberLogin", "Password")
+    jid = config.get("SyslogBot", "JID")
+    pwd = config.get("SyslogBot", "Password")
+    # Open all given pipes
+    pipes = config.get("SyslogBot", "Pipes").split(",")
+    pipes = map( lambda x: open(x, "r+" if os.access(x, os.W_OK) else "r" ), map(str.strip, pipes) )
+    # Load default recipients 
+    logJIDs = config.get("SyslogBot", "JIDs")
+    if logJIDs == "":
+        logJIDs = None
+    else:
+        logJIDs = map(lambda x: x.strip(), logJIDs.split(","))
     
-    # Reading all Pipe setups in the config file
-    pipes = []
-    for group in filter ( lambda x: x <> "JabberLogin", config.sections()):
-        logJIDs = config.get(group, "JIDs")
-        if logJIDs == "":
-            logJIDs = None
-        else:
-            logJIDs = map(lambda x: x.strip(), logJIDs.split(","))
-        gpipes = config.get(group, "Pipes")
-        # Check if we should open the pipes in update mode.
-        # This makes it possible that the pipe "client" can terminate the
-        # connection and later reconnect and we will not get receiver a EOF.
-        # So we don't need to close and open the pipe again for blocking read.
-        # But this neads read and write permission on the pipe!
-        gpipes = gpipes.split(",")
-        logging.info("Waiting until named pipes of %s are ready ..." % group)
-        # Open all given pipes
-        gpipes = map( lambda x: open(x, "r+" if os.access(x, os.W_OK) else "r" ), map(str.strip, gpipes) )
-        # Add all pipes with their jabber list	
-        pipes.extend( map( lambda x: ( x, logJIDs), gpipes ))
-
     # Start Bot
     logging.info("Starting Syslog Bot ...")
-    slBot = SyslogBot( jid, pwd, pipes )
+    slBot = SyslogBot( jid, pwd, map( lambda x: (x, logJIDs), pipes) )
     slBot.serve_forever()
 
 if __name__ == '__main__':
