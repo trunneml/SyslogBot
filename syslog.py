@@ -132,6 +132,18 @@ class SyslogBot(JabberBot):
         memStr.append( "Swap:\t %i %%  (%i MB/ %i MB)" % (swap[3], swap[1], swap[0]))
         return '\n'.join(memStr)
 
+# Bot commands for named pipes aka syslog
+    @botcmd
+    def listpipes(self, mess, args):
+        """Displays all Pipes and their state"""
+        ret = ["Open pipes:"]
+        ret.extend(map(lambda x: x.name, self._pipes))
+        if self._closedPipes:
+            ret.append("")
+            ret.append("Closed pipes:")
+            ret.extend(self._closedPipes)
+        return '\n'.join(ret)
+
 # Helpers
 
     def _mem(self):
