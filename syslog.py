@@ -59,7 +59,8 @@ class SyslogBot(JabberBot):
 
     def __init__( self, jid, password, pipes, jids, statusReport = False, res = None):
         super( SyslogBot, self).__init__( jid, password, res)
-        self._pipes = pipes
+        self.log.info("Opening all %i given pipes", len(pipes))
+        self._pipes = map( lambda x: open(x, "r+" if os.access(x, os.W_OK) else "r" ), pipes )
         self._defaultJIDs = jids
         self._status = statusReport
 
@@ -238,8 +239,7 @@ def main():
     jid = config.get("SyslogBot", "JID")
     pwd = config.get("SyslogBot", "Password")
     # Open all given pipes
-    pipes = config.get("SyslogBot", "Pipes").split(",")
-    pipes = map( lambda x: open(x, "r+" if os.access(x, os.W_OK) else "r" ), map(str.strip, pipes) )
+    pipes = map(str.strip, config.get("SyslogBot", "Pipes").split(","))
     # Load default recipients 
     logJIDs = config.get("SyslogBot", "JIDs")
     if logJIDs == "":
