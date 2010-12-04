@@ -60,7 +60,7 @@ class SyslogBot(JabberBot):
     def __init__( self, jid, password, pipes, jids, statusReport = False, res = None):
         super( SyslogBot, self).__init__( jid, password, res)
         self.log.info("Opening all %i given pipes", len(pipes))
-        self._pipes = map( lambda x: open(x, "r+" if os.access(x, os.W_OK) else "r" ), pipes )
+        self._pipes = map( self._open, pipes )
         self._closedPipes = []
         self._defaultJIDs = jids
         self._status = statusReport
@@ -144,7 +144,20 @@ class SyslogBot(JabberBot):
             ret.extend(self._closedPipes)
         return '\n'.join(ret)
 
+    @botcmd
+    def openclosedpipe(self, mess, args):
+        """Open a named pipe that was closed. (Warning system might be hang, when there is no connection partner)"""
+        pipe = args.strip()
+        if pipe in self._closedPipes:
+            self._pipes.append(self._open(pipe))
+            self._closedPipes.remove(pipe)
+            return "%s opened" % pipe
+        return "Pipe is not in list"
+
 # Helpers
+
+    def _open(self, pipe):
+        return open(pipe, "r+" if os.access(pipe, os.W_OK) else "r" )
 
     def _mem(self):
         """Calculates the memory status of the server"""
