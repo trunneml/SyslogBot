@@ -57,9 +57,10 @@ except ImportError:
 class SyslogBot(JabberBot):
     """This is a syslog (named pipes) to jabber bot. """
 
-    def __init__( self, jid, password, pipes, statusReport = False, res = None):
+    def __init__( self, jid, password, pipes, jids, statusReport = False, res = None):
         super( SyslogBot, self).__init__( jid, password, res)
-        self._pipes = dict(pipes)
+        self._pipes = pipes
+        self._defaultJIDs = jids
         self._status = statusReport
 
 # Bot Commands from pySysBot
@@ -190,8 +191,7 @@ class SyslogBot(JabberBot):
             self.status_type = self.XA
 
     def _idle_readPipe(self):
-        pipe2jids = self._pipes
-        pipes = pipe2jids.keys()
+        pipes = self._pipes
         # Waiting for a jabber connection
         if self.conn:
             self.log.debug("Looking for next line on pipe")
@@ -208,7 +208,7 @@ class SyslogBot(JabberBot):
                     jids = map(str.strip, part[0].split(","))
                 else:
                     msg = part[0].strip()
-                    jids = pipe2jids[pipe]
+                    jids = self._defaultJIDs
                 if jids:
                     for jid in jids:
                         self.log.debug("Sending \"%s\" to %s" % (msg, jid))
@@ -249,7 +249,7 @@ def main():
     
     # Start Bot
     logging.info("Starting Syslog Bot ...")
-    slBot = SyslogBot( jid, pwd, map( lambda x: (x, logJIDs), pipes) )
+    slBot = SyslogBot( jid, pwd, pipes, logJIDs )
     slBot.serve_forever()
 
 if __name__ == '__main__':
