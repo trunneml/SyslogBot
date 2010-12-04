@@ -31,11 +31,17 @@ along with SyslogBot.  If not, see <http://www.gnu.org/licenses/>.
 
 = Setup =
 For configuration details please look at the example config file.
-You have to setup the jabber account and password and a named pipe group.
+You have to setup the jabber account, the jabber password, a list of pipes and a (maybe empty) list of jids which are the default recipients.
 
-A named pipe group setups jids and named pipes. All messages received by one of the pipes will be delivered to the specified jids.
+All messages received by one of the pipes will be delivered to the specified jids.
+If the default recipients are empty, then they will be broadcasted to all connect jids in the roster of the bot.
 
-It is possible to setup as many named pipe groups as you want.
+If the message line contains "<::" the bot splits the message into two parts.
+The part before "<::" are interpreted as the recipient list for this message.
+The second part is the message that will be sent to the given jids list.
+If it is empty the message will be again broadcasted.
+This way you can setup the recipients in your syslog daemon. In syslog-ng and rsyslog you only have to create a message template for the output pipe to this bot.
+
 
 == Message filtering ==
-SyslogBot doesn't support any message filtering. Insead of that you have to configure your syslog daemon to only deliver messages you want to the name pipe. This needs much less system resources than a python based regex filtering. Syslog-ng and rsyslog have built in support for message filtering, which is really easy to configure. So there is no need for an extra filtering in SyslogBot.
+SyslogBot doesn't support any message filtering. Instead of that you have to configure your syslog daemon to only deliver messages you want to the name pipe. This needs much less system resources than a python based regex filtering. Syslog-ng and rsyslog have built in support for message filtering, which is really easy to configure. So there is no need for an extra filtering in SyslogBot.
