@@ -18,10 +18,7 @@ JIDs=admin1@example.com,admin2@example.com
 # Here you can specify the named pipes where syslog bot
 # reads the messages.
 # Filenames are separated by a ","
+# All named pipes with write permission are opened in read-update
+# mode. This makes it possible that the pipe connection partner can
+# disconnect and reconnect.
 Pipes=/dev/syslogbot,/tmp/anotherpipe
-# If the pipe client will close and reconnect the connection
-# the pipe must be opened in update mode ("r+"). But this needs
-# write permissions on the pipe.
-# For syslog it is safe to turn it off and makes it possible to use
-# default permissions of the "adm" group.
-UpdateMode=off

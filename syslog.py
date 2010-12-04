@@ -252,13 +252,10 @@ def main():
         # connection and later reconnect and we will not get receiver a EOF.
         # So we don't need to close and open the pipe again for blocking read.
         # But this neads read and write permission on the pipe!
-        readMode = "r"
-        if config.getboolean(group, "UpdateMode"):
-            readMode = "r+"
         gpipes = gpipes.split(",")
         logging.info("Waiting until named pipes of %s are ready ..." % group)
         # Open all given pipes
-        gpipes = map( lambda x: open(x.strip(), readMode), gpipes )
+        gpipes = map( lambda x: open(x, "r+" if os.access(x, os.W_OK) else "r" ), map(str.strip, gpipes) )
         # Add all pipes with their jabber list	
         pipes.extend( map( lambda x: ( x, logJIDs), gpipes ))
 
